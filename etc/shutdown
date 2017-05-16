@@ -1,0 +1,65 @@
+#!/bin/sh
+source /etc/rc.conf
+source /etc/init/func
+
+if [ -x /etc/init/rc.shut ]; then
+	/etc/init/rc.shut
+fi
+
+# It works, and I am not going to touch that
+for i in $(seq $(echo "${SERVICES}" | wc -w) -1 1); do
+	_serv=$(echo "${SERVICES}" | cut -d' ' -f${i})
+	if [ -x "/etc/init/rc.${_serv}" ]; then
+		echo -n "Stopping ${_serv}..."
+		"/etc/init/rc.${_serv}" k
+		if [ "${?}" -eq 0 ]; then
+			echo_done
+		else
+			echo "Service ${_serv} returned ${?}."
+		fi
+	fi
+	unset _serv
+done
+
+
+if [ "${UTC}" -eq 0 ]; then
+	null hwclock --systohc --localtime
+else
+	null hwclock --systohc --utc
+fi
+
+echo -n "signals: "
+killall5 -15
+sleep 1
+echo -n "TERM "
+killall5 -9
+sleep 1
+echo "KILL"
+
+swapoff -a
+
+echo -n "remountro: "
+null mount -n -o remount,ro /
+echo_done
+
+echo -n "syncing disks: "
+sync
+echo_done
+
+null umount -a -d -r
+
+case "$0" in
+	*/shutdown)
+		shutdown -h
+	;;
+	
+	*/reboot|*/cad)
+		shutdown -r
+	;;
+	*/poweroff|*/pwrfail)
+		shutdown -p
+	;;
+	*)
+		shutdown -h
+	;;
+esac

@@ -1,0 +1,61 @@
+#!/bin/sh
+
+if [ ! -x /sbin/iptables -a ! -x /sbin/ip6tables ]; then
+	echo "iptables not installed."
+	exit 4
+fi
+
+case "$1" in
+	lock|k)
+		iptables --policy INPUT DROP
+		iptables --policy OUTPUT DROP
+		iptables --policy FORWARD DROP
+		iptables --flush
+		iptables -t nat --flush
+		iptables -t mangle --flush
+		iptables --delete-chain
+		iptables -t nat --delete-chain
+		iptables -t mangle --delete-chain
+		iptables -A INPUT -i lo -j ACCEPT
+		iptables -A OUTPUT -o lo -j ACCEPT
+
+		ip6tables --policy INPUT DROP
+		ip6tables --policy OUTPUT DROP
+		ip6tables --policy FORWARD DROP
+		ip6tables --flush
+		ip6tables -t mangle --flush
+		ip6tables --delete-chain
+		ip6tables -t mangle --delete-chain
+		ip6tables -A INPUT -i lo -j ACCEPT
+		ip6tables -A OUTPUT -o lo -j ACCEPT
+	;;
+
+	clear)
+		iptables --policy INPUT ACCEPT
+		iptables --policy OUTPUT ACCEPT
+		iptables --policy FORWARD ACCEPT
+		iptables --flush
+		iptables -t nat --flush
+		iptables -t mangle --flush
+		iptables --delete-chain
+		iptables -t nat --delete-chain
+		iptables -t mangle --delete-chain
+
+		ip6tables --policy INPUT ACCEPT
+		ip6tables --policy OUTPUT ACCEPT
+		ip6tables --policy FORWARD ACCEPT
+		ip6tables --flush
+		ip6tables -t mangle --flush
+		ip6tables --delete-chain
+		ip6tables -t mangle --delete-chain
+	;;
+	s)
+		[ -x /sbin/iptrestore ] && /sbin/iptrestore
+		echo "iptables loaded."
+	;;
+
+	*)
+		echo "Usage: $0 {s|k|lock|clear}"
+		exit 1
+        ;;
+esac

@@ -1,0 +1,5 @@
+#!/bin/sh
+spawn /sbin/getty 38400 tty1
+spawn /sbin/getty 38400 tty2
+spawn /sbin/getty 38400 tty3
+spawn /sbin/getty 38400 tty4

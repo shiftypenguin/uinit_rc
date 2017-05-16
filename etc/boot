@@ -1,0 +1,122 @@
+#!/bin/sh
+
+source /etc/rc.conf
+source /etc/init/func
+
+echo -e "${BOLD}R2${NORMAL} boot: "
+
+mount -n -t proc proc /proc
+mount -n -t sysfs sysfs /sys
+
+dmesg -n $LOGLEVEL
+
+echo -n "mdev:"
+	mount -n -t tmpfs -o mode=0711 mdev /dev
+	echo /sbin/mdev > /proc/sys/kernel/hotplug
+	mdev -s
+echo_done
+
+mkdir /dev/pts
+mount -t devpts devpts /dev/pts
+
+echo -n "lock iptables: "
+/etc/init/rc.ipt lock
+echo_done
+
+echo -n "clock: "
+if [ "${UTC}" -eq 0 ]; then
+	hwclock --hctosys --localtime
+else
+	hwclock --hctosys --utc
+fi
+echo_done
+
+echo -n "checkfs: "
+	if [ -f /fastboot ]; then
+		echo "Will not check fs due to /fastboot."
+	else
+		null mount -n -o remount,ro /
+		if [ "${?}" -ne 0 ]; then
+			echo 'Failed at root mounting!'
+			echo 'Will reboot, fix the errors.'
+			read RETURN
+			shutdown -r
+			exit 0
+		fi
+
+		if [ -f /forcefsck ]; then
+			fsckopts="-f"
+		else
+			fsckopts=""
+		fi
+
+		fsck ${fsckopts} -a -A -T
+
+		err=${?}
+
+		if [ "${err}" -eq 0 ]; then
+			echo_done
+		elif [ "${err}" -eq 1 ]; then
+			echo -e "\nFilesystem errors were corrected."
+		elif [ "${err}" -eq 2 ] || [ "${err}" -eq 3 ]; then
+			echo -e "\nFilesystem errors were corrected. You need reboot."
+			read -t 15 RETURN
+			shutdown -r
+			exit 0
+		elif [ "${err}" -gt 3 ] && [ "${err}" -lt 16 ]; then
+			echo -e "\nFilesystem errors are uncorrectable automatically, fix manually."
+			PS1="(fsck) \#"; export PS1
+			sulogin
+			shutdown -r
+			exit 0
+		elif [ "${err}" -ge 16 ]; then
+			echo -e "\nFilesystem check exited with error code ${err}. This is not known to me."
+		fi
+	fi
+
+echo -n "rootrw: "
+	null mount -n -o remount,rw /
+	if [ "${?}" -gt 0 ]; then
+	echo "Cannot mount root for reading and writing."
+	read RETURN
+	shutdown -r
+	exit 0
+	fi
+	rm -f /fastboot /forcefsck
+	> /etc/mtab
+	mount -f /
+	null mount -a -O no_netdev
+	swapon -a
+echo_done
+
+rm -f /var/run/*.pid
+
+# local net interface
+ip addr add 127.0.0.1/8 label lo dev lo
+ip link set lo up
+if [ -r /etc/HOSTNAME ]; then
+	hostname $(cat /etc/HOSTNAME | head -n1)
+else
+	hostname "r2"
+fi
+
+dmesg -s 65536 > /var/log/dmesg
+sync
+
+if [ -f "/etc/sysctl.conf" ]; then
+	echo -n "sysctl: "
+	null sysctl -n -p
+	echo_done
+fi
+
+# services
+if [ -x /etc/init/services ]; then
+	/etc/init/services
+fi
+
+# gettys
+if [ -x /etc/init/gettys ]; then
+	/etc/init/gettys
+fi
+
+

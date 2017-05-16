@@ -1,0 +1,32 @@
+#!/bin/sh
+source /etc/rc.conf
+source /etc/init/func
+
+echo -n "syslog: "
+	/etc/init/rc.syslog
+echo_done
+
+# echo -en '\033[9;0]' >/dev/tty1
+chgrp wheel /sys
+chmod 400 /proc/cmdline /proc/version
+chmod 711 /dev/pts
+usleep 500000
+chmod 660 /dev/log && chgrp log /dev/log
+lh acpid -d
+
+# services
+for srv in ${SERVICES}; do
+	if [ -x "/etc/init/rc.${srv}" ]; then
+		echo -n "Starting ${srv}..."
+		"/etc/init/rc.${srv}" s
+		if [ "${?}" -eq 0 ]; then
+			echo_done
+		else
+			echo "Service ${srv} returned ${?}."
+		fi
+	fi
+done
+
+if [ -x /etc/init/rc.local ]; then
+        /etc/init/rc.local
+fi

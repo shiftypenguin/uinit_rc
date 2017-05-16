@@ -1,0 +1,15 @@
+# variables
+BOLD="\e[1m"
+NORMAL="\e[0m"
+DONE="${BOLD}DONE${NORMAL}"
+
+# functions
+echo_done()
+{
+COLUMNS=$(stty size 2>/dev/null)
+[ -z "${COLUMNS}" ] && COLUMNS="25 80"
+COLUMNS=$(echo ${COLUMNS} | cut -d' ' -f2)
+COL=$((${COLUMNS} - 6))
+SET_COL="\\e[${COL}G"
+	echo -n -e "${SET_COL}${DONE}\n"
+}

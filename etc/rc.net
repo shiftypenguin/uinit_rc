@@ -1,0 +1,56 @@
+#!/bin/sh
+
+ifdown()
+{
+	null pkill -f 'udhcpc.*'"${1}"
+	null pkill -f 'udhcpd.*'"${1}"
+	null pkill -f 'hostapd.*'"${1}"
+	null ip a f dev "${1}"
+	null ip l set "${1}" down
+}
+
+ifs_init()
+{
+:
+}
+
+if_hte0()
+{
+	ifdown hte0
+	ip l set hte0 up
+	ip a add 192.0.2.32/24 dev hte0
+	ip r add default via 192.0.2.1 dev hte0
+}
+
+# if_hte0()
+# {
+#	ifdown hte0
+#	udhcpc -i hte0 -O staticroutes
+# }
+
+case "${1}" in
+	k)
+		if [ -n "$2" ]; then
+			ifdown $2
+			exit $?
+		fi
+
+		for l in $(ip l | grep "^[0-9]" | fgrep -v lo | cut -d':' -f2 | cut -d'@' -f1 | tr -d ' '); do
+			ifdown $l
+		done
+	;;
+	s)
+		exec $0
+	;;
+	*)
+		if [ -n "$1" ]; then
+			if_${1}
+			exit $?
+		fi
+
+		nameif
+		ifs_init
+
+#		if_hte0
+	;;
+esac

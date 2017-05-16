@@ -1,0 +1,11 @@
+#!/bin/sh
+case "${1}" in
+	k)
+		pkill -f klogd
+		pkill -f syslogd
+	;;
+	*)
+		syslogd -m 0 -s 0
+		klogd
+	;;
+esac
